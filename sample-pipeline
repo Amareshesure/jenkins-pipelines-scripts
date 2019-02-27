@@ -1,0 +1,46 @@
+node 
+{
+   try
+   {
+       notify('Started')
+       stage('Checkout Git') 
+       { // for display purposes
+          // Get some code from a GitHub repository
+          git 'https://github.com/wzhou-esure/jenkins2-course-spring-petclinic.git'
+       }
+       stage('Compile and Build')
+       {
+            sh 'mvn clean verify'
+       }
+       stage('Generate Archive')
+       {
+           archiveArtifacts "target/*.?ar"
+           publishHTML([allowMissing: false, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'target/site/jacoco', reportFiles: 'index.html', reportName: 'PetClinic Code Coverage', reportTitles: ''])
+       }
+       stage('Test Results')
+       {
+           step([$class: 'JUnitResultArchiver', testResults: 'target/surefire-reports/TEST-*.xml'])
+       }
+       stage('Email Build Output')
+       {
+           emailext body: 'Build status ', recipientProviders: [developers()], subject: 'Jenkins Build Notification', to: 'williamkzhou@hotmail.com'
+       }
+   }
+   catch(err)
+   {
+       
+       currentBuild.result = 'FAILURE'
+   }
+}
+
+def notify(status)
+{
+    emailext (
+      to: "williamkzhou@hotmail.com",
+      subject: "${status}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+      body: """<p>${status}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]':</p>
+      <p>Check console output at <a href='${env.BUILD_URL}'>${env.JOB_NAME} [${env.BUILD_NUMBER}]</a></p>""",
+    )
+}
+
+
