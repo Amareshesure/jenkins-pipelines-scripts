@@ -32,7 +32,7 @@ node
     unstash 'everything'
     sh 'ls -la'
     //sh 'npm run test-single-run -- --browsers Chrome'
-}
+
 
 stage 'Browser Testing'
 {
@@ -51,6 +51,30 @@ stage 'Browser Testing'
     }
 }
 
+}
+
+node {
+    notify("Deploy to Staging")
+}
+
+input 'Deploy to statging'
+
+// limit concurrency so we don't perform simultaneous deploys
+// and if multiple pipelines are executing,
+// newest is only that will be allowed through, rest will be cancelled
+stage name: 'Deploy', concurrency: 1
+node
+{
+    // write build number to index page so we can see this update
+    sh "echo "echo '<h1>${env.BUILD_DISPLAY_NAME}</h1>' >> app/index.html"
+    
+    // deploy to a docker container mapped on port 3000
+    sh 'docker-compose up -d --build'
+    
+    // notify
+    notify 'Solitaire Deployed'
+}
+
 def runTests(browser)
 {
     node
@@ -62,7 +86,8 @@ def runTests(browser)
     }
 }
 
-def notify(status){
+def notify(status)
+{
     emailext (
       to: "wesmdemos@gmail.com",
       subject: "${status}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
